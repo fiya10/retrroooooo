@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.title }} | {% endblock %}
+
+{% block content %}
+<style>
+    .columns.is-gapless {
+        margin: 0;
+    }
+
+    .columns.is-gapless .column {
+        padding: 0;
+    }
+</style>
+
+<div id="productapp" class="product-box">
+    <img :src="mainImage" alt="{{ product.title }}" class="card-img-top">
+    <hr>
+    <div class="columns is-gapless">
+        <div class="column is-2" v-for="image in images" :key="image.image">
+            <figure class="image is-128x128">
+                <img :src="image.thumbnail" @click="changeMainImage(image.image)">
+            </figure>
+        </div>
+    </div>
+    <h1 class="title">{{ product.title }}</h1>
+    <h2 class="subtitle">${{ product.price }}, Stars: {% if product.get_rating == 0 %}No ratings yet{% else %}{{ product.get_rating|floatformat:1 }}{% endif %}</h2>
+
+    {% if product.description %}
+        <p>{{ product.description }}</p>
+    {% endif %}
+
+    <div>
+        {% if product.in_cart %}
+            <p>Already in cart!</p>
+        {% else %}
+            {% if product.num_available > 0 %}
+                <button @click="addToCart({{ product.id }})" class="btn btn-success">Add to cart</button>
+            {% else %}
+                <p>The product is out of stock!</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <article class="alert alert-success" v-if="showMessage">
+        <div class="alert-body">
+            The product was added to the cart!
+        </div>
+    </article>
+    <h2 class="subtitle">Reviews</h2>
+
+    <div class="reviews-wrapper">
+        {% for review in product.reviews.all %}
+            <div class="alert alert-light">
+                <p>
+                    <strong>Date: </strong>{{ review.date_added|date:"Y-m-d" }},
+                    <strong>Stars: </strong>{{ review.stars }}
+                </p>
+                {{ review.content }}
+            </div>
+        {% empty %}
+            <div class="alert alert-light">
+                No reviews yet...
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="alert alert-light">
+        {% if request.user.is_authenticated %}
+            <form method="post" action=".">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Stars</label>
+                    <select name="stars" class="form-control">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Content</label>
+                    <textarea class="form-control" name="content"></textarea>
+                </div>
+
+                <button class="btn btn-success">Submit</button>
+            </form>
+        {% else %}
+            <p>Please sign in to add review!</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script>
+    var productapp = new Vue({
+        el: '#productapp',
+        delimiters: ['[[', ']]'],
+        store: store,
+        data() {
+            return {
+                csrfToken: '{{ csrf_token }}',
+                showMessage: false,
+                mainImage: '{{ product.image.url }}',
+                images: {{ imagesstring|safe }}
+            }
+        },
+        mounted() {
+            console.log('Vue instance mounted');
+        },
+        methods: {
+            changeMainImage(image) {
+                this.mainImage = image;
+            },
+            addToCart(product_id) {
+                console.log('Product_id:', product_id);
+                var data = {
+                    'product_id': product_id,
+                    'update': false,
+                    'quantity': 1
+                };
+
+                fetch('/api/add_to_cart/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                })
+                .then((response) => {
+                    console.log(response);
+                    this.showMessage = true;
+                    store.commit('increment', 1);
+                    setTimeout(() => {
+                        this.showMessage = false;
+                    }, 2000);
+                })
+                .catch(function(error){
+                    console.log('Error 2');
+                    console.log(error);
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

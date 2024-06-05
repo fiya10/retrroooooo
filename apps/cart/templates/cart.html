@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+
+{% block title %}Cart | {% endblock %}
+
+{% block content %}
+<div id="cartapp">
+    <h1 class="title">Cart</h1>
+
+    <div v-if="products.length > 0">
+        <div class="table">
+            <table class="table is-fullwidth is-striped">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="product in products" :key="product.id">
+                        <td>[[ product.title ]]</td>
+                        <td>
+                            <button @click="decrementQuantity(product.id, product.quantity, product.price)">-</button> 
+                            [[ product.quantity ]] 
+                            <button @click="incrementQuantity(product.id, product.quantity, product.price)">+</button>
+                        </td>
+                        <td>[[ calculateTotalPrice(product.price, product.quantity) ]]</td>
+                        <td>
+                            <button @click="removeFromCart(product.id, product.quantity, product.price)" class="button is-danger">Remove</button>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>Total cost:</td>
+                        <td>[[ numItems ]]</td>
+                        <td>[[ totalCost ]]</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {% if not request.user.is_authenticated %}
+        <p>Continue as guest or <a href="{% url 'login' %}">log in</a> / <a href="{% url 'signup' %}">sign up</a>.</p>
+
+        <hr>
+        {% endif %}
+
+        <form @submit.prevent="checkout">
+            <div class="field">
+                <label>First name</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="first_name">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Last name</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="last_name">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>E-mail</label>
+                <div class="control">
+                    <input class="input" type="email" v-model="email">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Phone</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="phone">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Address</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="address">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Zip code</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="zipcode">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Place</label>
+                <div class="control">
+                    <input class="input" type="text" v-model="place">
+                </div>
+            </div>
+
+            <div class="field">
+                <button type="submit" class="button is-primary">Check out</button>
+            </div>
+        </form>
+    </div>
+    <p v-else>Your cart is empty!</p>
+
+    <div v-if="errors.length > 0">
+        <article class="message is-danger" v-for="error in errors">
+            <div class="message-header">
+                <p>Error</p>
+            </div>
+            <div class="message-body">
+                [[ error ]]
+            </div>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/javascript" src="https://js.stripe.com/v3/"></script>
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+new Vue({
+    el: '#cartapp',
+    delimiters: ['[[', ']]'],
+    store: store,
+    data() {
+        return {
+            errors: [],
+            first_name: '{{ first_name }}',
+            last_name: '{{ last_name }}',
+            email: '{{ email }}',
+            phone: '{{ phone }}',
+            address: '{{ address }}',
+            zipcode: '{{ zipcode }}',
+            place: '{{ place }}',
+            csrfToken: getCookie('csrftoken'),
+            products: JSON.parse('{{ productsstring|safe }}')
+        }
+    },
+    computed: {
+        numItems() {
+            return this.$store.state.numItems;
+        },
+        totalCost() {
+            return this.$store.state.totalCost;
+        }
+    },
+    methods: {
+        calculateTotalPrice(price, quantity) {
+            return (parseFloat(price) * parseInt(quantity)).toFixed(2);
+        },
+        checkout() {
+            this.errors = [];
+            const data = {
+                first_name: this.first_name,
+                last_name: this.last_name,
+                email: this.email,
+                address: this.address,
+                zipcode: this.zipcode,
+                place: this.place,
+                phone: this.phone
+            };
+
+            if (!data.first_name) this.errors.push('First name is empty');
+            if (!data.last_name) this.errors.push('Last name is empty');
+            if (!data.email) this.errors.push('Email is empty');
+            if (!data.address) this.errors.push('Address is empty');
+            if (!data.zipcode) this.errors.push('Zip code is empty');
+            if (!data.place) this.errors.push('Place is empty');
+
+            if (this.errors.length === 0) {
+                const stripe = Stripe('{{ pub_key }}');
+                fetch('/api/create_checkout_session/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(session => stripe.redirectToCheckout({ sessionId: session.session.id }))
+                .catch(error => console.error('Error:', error));
+            } else {
+                console.error('Errors:', this.errors);
+            }
+        },
+        incrementQuantity(product_id, quantity, price) {
+            if (quantity < 1) return;
+            const data = {
+                product_id,
+                update: true,
+                quantity: parseInt(quantity) + 1
+            };
+
+            fetch('/api/add_to_cart/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const product = this.products.find(p => p.id === product_id);
+                    if (product && product.quantity < product.num_available) {
+                        product.quantity++;
+                        product.total_price = this.calculateTotalPrice(product.price, product.quantity);
+                        this.$store.commit('increment', 1);
+                        this.$store.commit('changeTotalCost', parseFloat(price));
+                    } else {
+                        alert('No more available in stock!');
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        },
+        decrementQuantity(product_id, quantity, price) {
+            if (quantity <= 1) return;
+            const data = {
+                product_id,
+                update: true,
+                quantity: parseInt(quantity) - 1
+            };
+
+            fetch('/api/add_to_cart/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const product = this.products.find(p => p.id === product_id);
+                    if (product) {
+                        product.quantity--;
+                        product.total_price = this.calculateTotalPrice(product.price, product.quantity);
+                        this.$store.commit('increment', -1);
+                        this.$store.commit('changeTotalCost', -parseFloat(price));
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        },
+        removeFromCart(product_id, quantity, price) {
+            const data = { product_id };
+
+            fetch('/api/remove_from_cart/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const productIndex = this.products.findIndex(p => p.id === product_id);
+                    if (productIndex > -1) {
+                        const product = this.products[productIndex];
+                        this.$store.commit('increment', -product.quantity);
+                        this.$store.commit('changeTotalCost', -product.quantity * parseFloat(price));
+                        this.products.splice(productIndex, 1);
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    }
+});
+</script>
+{% endblock %}

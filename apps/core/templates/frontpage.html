@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Welcome | {% endblock %}
+
+{% block content %}
+    <div class="jumbotron jumbotron-fluid text-white bg-dark text-center" style="background-image: url('{% static 'images/welcome.jpg' %}'); background-size: cover; background-position: center; height: 400px; position: relative;">
+        <div class="container h-100 d-flex flex-column justify-content-center">
+            <h1 class="display-4 font-weight-bold welcome-text">Welcome to Retrowear</h1>
+        </div>
+    </div>
+
+    <h1 class="title mt-4">Featured Products</h1>
+    <div class="row">
+        {% for product in products %}
+        <div class="col-md-3">
+            <a href="{% url 'product_detail' category_slug=product.category.slug slug=product.slug %}" class="card-link">
+                <div class="card product-card">
+                    <div class="card-image">
+                        <img src="{{ product.thumbnail.url }}" class="card-img-top" alt="{{ product.title }}">
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.title }}</h5>
+                        <p class="card-subtitle">${{ product.price }}</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block styles %}
+    <style>
+        .welcome-text {
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+        }
+        .product-card {
+            margin-bottom: 20px;
+        }
+        .product-card .card-title {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .product-card .card-subtitle {
+            color: #666;
+        }
+    </style>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Search | {% endblock %}
+
+{% block content %}
+    <h1 class="title">Search</h1>
+    <h2 class="subtitle">Search term: "{{ query }}"</h2>
+
+    <hr>
+
+    <form method="get" action="{% url 'search' %}">
+        <div class="row">
+            <div class="col-md-4">
+                <h2 class="is-size-5">Query</h2>
+                <div class="form-group">
+                    <label>Search term</label>
+                    <input type="text" name="query" class="form-control" value="{{ query }}">
+                </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" name="instock" class="form-check-input" {% if instock %}checked="checked"{% endif %}>
+                    <label class="form-check-label">In stock</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h2 class="is-size-5">Price range</h2>
+                <div class="form-group">
+                    <label>From</label>
+                    <input type="number" name="price_from" class="form-control" value="{{ price_from }}">
+                </div>
+                <div class="form-group">
+                    <label>To</label>
+                    <input type="number" name="price_to" class="form-control" value="{{ price_to }}">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h2 class="is-size-5">Sorting</h2>
+                <div class="form-group">
+                    <label>Select sorting criteria</label>
+                    <select name="sorting" class="form-control">
+                        <option value="-date_added"{% if sorting == '-date_added' %} selected{% endif %}>Newest first</option>
+                        <option value="price"{% if sorting == 'price' %} selected{% endif %}>Price low-high</option>
+                        <option value="-price"{% if sorting == '-price' %} selected{% endif %}>Price high-low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <button class="btn btn-success">Search</button>
+        </div>
+    </form>
+
+    <hr>
+
+    <div class="row">
+        {% for product in products %}
+            <div class="col-md-4 product-box">
+                <div class="card">
+                    <img src="{{ product.thumbnail.url }}" class="card-img-top" alt="{{ product.title }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.title }}</h5>
+                        <p class="card-text">${{ product.price }}</p>
+                        <a href="{% url 'product_detail' product.category.slug product.slug %}" class="btn btn-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

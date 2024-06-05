@@ -1,0 +1,127 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{% endblock %} Retrowear</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" id="navbarapp">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'frontpage' %}">Retrowear</a>
+            <button class="navbar-toggler" type="button" @click="toggleMenu" aria-controls="main-navbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" :class="{ 'show': menuClass }" id="main-navbar">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'search' %}">
+                            <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search" name="query">
+                            <button class="btn btn-success my-2 my-sm-0" type="submit">Search</button>
+                        </form>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ml-auto">
+                    {% for category in menu_categories %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'category_detail' category.slug %}">{{ category.title }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="nav-item">
+                        <a class="btn btn-primary" href="{% url 'cart' %}">Cart ([[ numItems ]])</a>
+                    </li>
+                    {% if request.user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="btn btn-light" href="{% url 'myaccount' %}">My account</a>
+                        </li>
+                        <li class="nav-item">
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">Log out</button>
+                            </form>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="btn btn-primary" href="{% url 'signup' %}"><strong>Sign up</strong></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-light" href="{% url 'login' %}">Log in</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <section class="container my-5">
+        {% block content %}
+        {% endblock %}
+    </section>
+
+    <footer class="footer bg-dark text-white py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h2 class="h5">Retrowear</h2>
+                </div>
+                <div class="col-md-8">
+                    <a href="{% url 'contact' %}" class="text-white mr-3">Contact</a>
+                    <a href="{% url 'about' %}" class="text-white">About</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vuex@3.5.1/dist/vuex.js"></script>
+    <script>
+        const store = new Vuex.Store({
+            state: {
+                numItems: {{ cart.get_total_length|default:0 }},
+                totalCost: {{ cart.get_total_cost|default:0 }}
+            },
+            mutations: {
+                increment(state, quantity) {
+                    state.numItems += quantity;
+                },
+                changeTotalCost(state, newCost) {
+                    state.totalCost += newCost;
+                }
+            }
+        });
+
+        const navbarapp = new Vue({
+            el: '#navbarapp',
+            delimiters: ['[[', ']]'],
+            store: store,
+            data() {
+                return {
+                    menuClass: false
+                };
+            },
+            computed: {
+                numItems() {
+                    return this.$store.state.numItems;
+                }
+            },
+            methods: {
+                toggleMenu() {
+                    this.menuClass = !this.menuClass;
+                }
+            }
+        });
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>
